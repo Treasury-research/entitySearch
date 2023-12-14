@@ -10,3 +10,4 @@ pymysql-pool==0.4.6
 urllib3==1.25.1
 DBUtils==3.0.3
 tiktoken==0.5.1
+mysqlclient==2.2.0
