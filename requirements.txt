@@ -2,3 +2,5 @@ langchain==0.0.311
 Flask==3.0.0
 requests==2.31.0
 openai==1.1.0
+neo4j==5.14.1
+serpapi==0.1.5
