@@ -2,8 +2,6 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from llama_index.graph_stores.types import GraphStore
-
 logger = logging.getLogger(__name__)
 
 node_properties_query = """
@@ -32,7 +30,7 @@ RETURN {start: label, type: property, end: toString(other_node)} AS output
 """
 
 
-class Neo4jGraphStore(GraphStore):
+class Neo4jGraphStore():
     def __init__(
         self,
         username: str,

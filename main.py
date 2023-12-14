@@ -2,8 +2,6 @@ import time
 from langchain import PromptTemplate, LLMChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.chat_models import ChatOpenAI
-from langchain.chains.summarize import load_summarize_chain
 from langchain.retrievers import KNNRetriever
 from langchain.embeddings import SentenceTransformerEmbeddings
 from flask import Flask, Response, request, stream_with_context, jsonify
@@ -333,6 +331,7 @@ def refineSummary(pre_summary,input_text,kg_subgraph=None):
     yield pre_summary
     yield "\n"
     if kg_subgraph:
+
         PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible and contain enough information in the knowledge graph. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.'"
         content = f"The knowledge graph triples are: {kg_subgraph}\n\n"
         completion = client.chat.completions.create(
@@ -390,8 +389,7 @@ def entitySearch():
         simText,simUrl = getSimUrl(intro, googleData, k)
         
         simUrlSummary = getUrlSummary(simUrl)
-        socialUrlSummary = getUrlSummary(social_media_url)
-        simUrlSummary = []
+        # socialUrlSummary = getUrlSummary(social_media_url)
         kg_subgraph = graph_store.get_rel_map([project_name])
         kg_subgraph[project_name].append([[project_name,"similar_project", sim] for sim in similar_project])
         print(f"kg_subgraph:{kg_subgraph}")
@@ -411,8 +409,7 @@ def entitySearch():
         simText,simUrl = getSimUrl(description, googleData, k)
         
         simUrlSummary = getUrlSummary(simUrl)
-        socialUrlSummary = getUrlSummary(social_media_url)
-        simUrlSummary = []
+        # socialUrlSummary = getUrlSummary(social_media_url)
         kg_subgraph = graph_store.get_rel_map([org_name])
         kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
         kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
