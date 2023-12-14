@@ -13,7 +13,6 @@ from openai import OpenAI
 import random
 from serpapi import search
 from bs4 import BeautifulSoup
-import mysql.connector
 from dbutils.pooled_db import PooledDB
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
