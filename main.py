@@ -11,7 +11,7 @@ import copy
 import openai
 from openai import OpenAI
 import random
-from serpapi import GoogleSearch
+from serpapi import search
 from bs4 import BeautifulSoup
 import mysql.connector
 from dbutils.pooled_db import PooledDB
@@ -273,7 +273,7 @@ def googleSearch(entity, type = 1):
     res = []
     if type==1:
         for t in Templates_project:
-            search = GoogleSearch({
+            search = search({
                 "q": t, 
                 "engine": "google",
                 "api_key":serpapi_key,
@@ -284,7 +284,7 @@ def googleSearch(entity, type = 1):
 
     else:
         for t in Templates_org:
-            search = GoogleSearch({
+            search = search({
                 "q": t, 
                 "engine": "google",
                 "api_key":serpapi_key,
