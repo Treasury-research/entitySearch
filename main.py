@@ -11,6 +11,15 @@ import copy
 import openai
 from openai import OpenAI
 import random
+from serpapi import GoogleSearch
+from bs4 import BeautifulSoup
+import mysql.connector
+from dbutils.pooled_db import PooledDB
+from urllib.parse import urlparse
+from datetime import datetime, timedelta
+import uuid
+import pymysql
+import tiktoken
 # os.environ["http_proxy"] = "http://localhost:7890"
 # os.environ["https_proxy"] = "http://localhost:7890"
 from neo4j_ import Neo4jGraphStore
@@ -257,7 +266,6 @@ def getSimUrl(pre_summary,texts, k):
 
 # find in google:
 def googleSearch(entity, type = 1):
-    from serpapi import GoogleSearch
     # import serpapi.SerpApiClient
     Templates_project = [f"What's new about {entity}.", f"The news about {entity}."]
     Templates_org = [f"What's new about {entity}.", f"The news about {entity}."]
