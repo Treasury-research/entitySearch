@@ -291,7 +291,7 @@ def googleSearch(entity, type = 1):
                 "gl": "us",
                 "tbs": "qdr:y",
                 })
-    data = search_.get_json()
+    data = search_
     snip = parse_snippets(data,3)
     if snip:
         res.extend(snip)
@@ -375,6 +375,8 @@ def refineSummary(pre_summary,input_text,kg_subgraph=None):
 @app.route('/api/entitySearch',methods=['POST','GET'])
 def entitySearch():
     entity = "ETH"
+    k = 3
+
     if request.method =="POST":
         entity = request.get_json().get("entity")
         k = request.get_json().get("k")
@@ -390,7 +392,6 @@ def entitySearch():
         similar_project = [project["project_name"] for project in data['similar_project']]
         project_name = data["project_name"]
         investors = data["investors"]
-        k = 3
         # get the socialmedia Url summary
         googleData = googleSearch(project_name)
         simText,simUrl = getSimUrl(intro, googleData, k)
@@ -410,7 +411,6 @@ def entitySearch():
         org_name = data['org_name']
         team_members = data['team_members']
         social_media_url = [value for key,value in data['social_media'].items() if value!="" and key!="X"]
-        k = 3
         # get the socialmedia Url summary
         googleData = googleSearch(project_name,type=2)
         simText,simUrl = getSimUrl(description, googleData, k)
