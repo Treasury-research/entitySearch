@@ -272,7 +272,7 @@ def googleSearch(entity, type = 1):
     res = []
     if type==1:
         for t in Templates_project:
-            search = search({
+            search_ = search({
                 "q": t, 
                 "engine": "google",
                 "api_key":serpapi_key,
@@ -283,7 +283,7 @@ def googleSearch(entity, type = 1):
 
     else:
         for t in Templates_org:
-            search = search({
+            search_ = search({
                 "q": t, 
                 "engine": "google",
                 "api_key":serpapi_key,
@@ -291,7 +291,7 @@ def googleSearch(entity, type = 1):
                 "gl": "us",
                 "tbs": "qdr:y",
                 })
-    data = search.get_json()
+    data = search_.get_json()
     snip = parse_snippets(data,3)
     if snip:
         res.extend(snip)
