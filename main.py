@@ -168,6 +168,39 @@ def insert_or_update_data(url, summary):
     cursor.close()
     conn.close()
 
+def insert_data(entity, rootdata_summary, kg_summary=None, socialMedia_summary=None, socialMedia_url=None):
+    conn = pool.connection()
+    cursor = conn.cursor()
+    id = str(uuid4())
+    cursor.execute("INSERT INTO entity_summary (id, entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url) VALUES (%s, %s, %s, %s, %s, %s)", 
+              (id, entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url))
+    conn.commit()
+    conn.close()
+
+def update_data(entity, kg_summary=None, socialMedia_summary=None, socialMedia_url=None):
+    conn = pool.connection()
+    cursor = conn.cursor()
+    if kg_summary:
+        cursor.execute("UPDATE entity_summary SET kg_summary=%s WHERE entity=%s", 
+                (kg_summary, entity))
+    if socialMedia_summary:
+        cursor.execute("UPDATE entity_summary SET socialMedia_summary=%s WHERE entity=%s", 
+                (socialMedia_summary, entity))
+    if socialMedia_url:
+        list_as_string = ','.join(socialMedia_url)
+        cursor.execute("UPDATE entity_summary SET socialMedia_url=%s WHERE entity=%s", 
+                (list_as_string, entity))
+    conn.commit()
+    conn.close()
+
+def query_data(entity,kg_summary=None, socialMedia_summary=None, socialMedia_url=None):
+    conn = pool.connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url FROM entity_summary WHERE entity = %s", (entity,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row
 
 def getUrlSummary(urls):
     res = []
@@ -334,11 +367,14 @@ def parse_snippets(results, k):
 
 
     
-def refineSummary(pre_summary,input_text,kg_subgraph=None):
+def refineSummary(entity,pre_summary,input_text,kg_subgraph=None,exist_kg=None):
     yield pre_summary
     yield "\n"
-    if kg_subgraph:
-
+    if exist_kg:
+        yield kg_subgraph
+        yield "\n"
+    elif kg_subgraph:
+        stream_data = ""
         PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible and contain enough information in the knowledge graph. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.'"
         content = f"The knowledge graph triples are: {kg_subgraph}\n\n"
         completion = client.chat.completions.create(
@@ -352,7 +388,9 @@ def refineSummary(pre_summary,input_text,kg_subgraph=None):
         for chunk in completion:
             data = chunk.choices[0].delta.content
             if data!=None:
+                stream_data += data
                 yield data
+        update_data(entity=entity,kg_summary=stream_data)
     if len(input_text)>0:
         PROMPT = f"I want you to act as a summarizer. I will give you a preSummary and a text, and you should refine a summary to replenishment the preSummary based on the text given. Your summary should be factual and segmented, covering the most important aspects of the text. Your new summary should be the addictions to preSummary, and not same to it.\n"
         content = f"The preSummary is: {pre_summary} \n\n The text is: {input_text}\n\n"
@@ -376,14 +414,18 @@ def refineSummary(pre_summary,input_text,kg_subgraph=None):
 def entitySearch():
     entity = "ETH"
     k = 3
-
+    socialUrlSummary = False
+    exist_kg = None
     if request.method =="POST":
         entity = request.get_json().get("entity")
         k = request.get_json().get("k")
+        socialUrlSummary = request.get_json().get("socialUrlSummary")
         print(f"Post k is:{k}")
         print(f"Post Entity is:{entity}")
+        print(f"Post socialUrlSummary is:{socialUrlSummary}")
 
     res,type_ = getRootData(entity)
+    socialMedia_summary = ""
     if type_==1: # project entity
         # res:data is data; result is res code
         data = res
@@ -392,17 +434,33 @@ def entitySearch():
         similar_project = [project["project_name"] for project in data['similar_project']]
         project_name = data["project_name"]
         investors = data["investors"]
+        # check exist in mysql
+        mysql_res = query_data(project_name)
+        if mysql_res:
+            entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url = mysql_res
+            if kg_summary:
+                exist_kg = True
+                kg_subgraph = kg_summary
+            if socialUrlSummary and socialMedia_summary==None:
+                socialMedia_summary = getUrlSummary(social_media_url)
+                update_data(entity=project_name,socialMedia_summary=socialMedia_summary)
+        else:
+            insert_data(entity=project_name,rootdata_summary=intro,socialMedia_url=social_media_url)
+            if socialUrlSummary:
+                socialMedia_summary = getUrlSummary(social_media_url)
+                update_data(entity=project_name,socialMedia_summary=socialMedia_summary)
+        if exist_kg==None:
+            kg_subgraph = graph_store.get_rel_map([project_name])
+            kg_subgraph[project_name].append([[project_name,"similar_project", sim] for sim in similar_project])
+
         # get the socialmedia Url summary
         googleData = googleSearch(project_name)
         simText,simUrl = getSimUrl(intro, googleData, k)
-        
         simUrlSummary = getUrlSummary(simUrl)
-        # socialUrlSummary = getUrlSummary(social_media_url)
-        kg_subgraph = graph_store.get_rel_map([project_name])
-        kg_subgraph[project_name].append([[project_name,"similar_project", sim] for sim in similar_project])
         print(f"kg_subgraph:{kg_subgraph}")
         print(f"simUrlSummary:{simUrlSummary}")
-        return Response(refineSummary(intro,simUrlSummary,kg_subgraph), mimetype="text/event-stream")
+        return Response(refineSummary(project_name,intro,simUrlSummary+socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
+
     elif type_==2: # investor entity
         data = res
         description = data['description']
@@ -411,18 +469,34 @@ def entitySearch():
         org_name = data['org_name']
         team_members = data['team_members']
         social_media_url = [value for key,value in data['social_media'].items() if value!="" and key!="X"]
+
+        # check exist in mysql
+        mysql_res = query_data(org_name)
+        if mysql_res:
+            entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url = mysql_res
+            if kg_summary:
+                exist_kg = True
+                kg_subgraph = kg_summary
+            if socialUrlSummary and socialMedia_summary==None:
+                socialMedia_summary = getUrlSummary(social_media_url)
+                update_data(entity=org_name,socialMedia_summary=socialMedia_summary)
+        else:
+            insert_data(entity=org_name,rootdata_summary=description,socialMedia_url=social_media_url)
+            if socialUrlSummary:
+                socialMedia_summary = getUrlSummary(social_media_url)
+                update_data(entity=org_name,socialMedia_summary=socialMedia_summary)
+        if exist_kg == None:
+            kg_subgraph = graph_store.get_rel_map([org_name])
+            kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
+            kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
+
         # get the socialmedia Url summary
         googleData = googleSearch(project_name,type=2)
         simText,simUrl = getSimUrl(description, googleData, k)
-        
         simUrlSummary = getUrlSummary(simUrl)
-        # socialUrlSummary = getUrlSummary(social_media_url)
-        kg_subgraph = graph_store.get_rel_map([org_name])
-        kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
-        kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
         print(f"kg_subgraph:{kg_subgraph}")
         print(f"simUrlSummary:{simUrlSummary}")
-        return Response(refineSummary(intro,simUrlSummary,kg_subgraph), mimetype="text/event-stream")
+        return Response(refineSummary(org_name,description,simUrlSummary+socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     return jsonify(data="Error!"), 500
 
