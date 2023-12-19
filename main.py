@@ -2,13 +2,15 @@ import time
 from langchain import PromptTemplate, LLMChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.retrievers import KNNRetriever
-from langchain.embeddings import SentenceTransformerEmbeddings
+# from langchain.retrievers import KNNRetriever
+# from langchain.embeddings import SentenceTransformerEmbeddings
 from flask import Flask, Response, request, stream_with_context, jsonify
 import os
 import requests
 import copy
 import openai
+import numpy as np
+from langchain.scheam import Document
 from openai import OpenAI
 import random
 from serpapi import search
@@ -288,10 +290,37 @@ def getBriefSummary(input_text):
     except:
         return ""
 
+# get sim
+def _get_relevant_documents(texts, query, k, relevancy_threshold=None):
+    index_embeds = openai.embeddings.create(model="text-embedding-ada-002", input=texts)
+    index_embeds = np.array([item.embedding for item in index_embeds.data])
+    query_embeds = openai.embeddings.create(model="text-embedding-ada-002", input=query)
+    query_embeds = np.array([item.embedding for item in index_embeds.data])
+    # calc L2 norm
+    index_embeds = index_embeds / np.sqrt((index_embeds**2).sum(1, keepdims=True))
+    query_embeds = query_embeds / np.sqrt((query_embeds**2).sum())
+
+    similarities = index_embeds.dot(query_embeds.squeeze())
+    sorted_ix = np.argsort(-similarities)
+
+    denominator = np.max(similarities) - np.min(similarities) + 1e-6
+    normalized_similarities = (similarities - np.min(similarities)) / denominator
+
+    top_k_results = [
+        Document(page_content=texts[row])
+        for row in sorted_ix[0 : k]
+        if (
+            relevancy_threshold is None
+            or normalized_similarities[row] >= relevancy_threshold
+        )
+    ]
+    return top_k_results
+
 def getSimUrl(pre_summary,texts, k):
     text = [i[0] for i in texts]
-    retriever = KNNRetriever.from_texts(text, SentenceTransformerEmbeddings(),k=k)
-    result = retriever.get_relevant_documents(pre_summary)
+    # retriever = KNNRetriever.from_texts(text, SentenceTransformerEmbeddings(),k=k)
+    # result = retriever.get_relevant_documents(pre_summary)
+    result = _get_relevant_documents(text, pre_summary, k)
     text_json = {i[0]:i[1] for i in texts}
     simUrls = [text_json[r.page_content] for r in result]
     return result,simUrls
