@@ -396,7 +396,7 @@ def parse_snippets(results, k):
 
 
     
-def refineSummary(entity,pre_summary,input_text,kg_subgraph=None,exist_kg=None):
+def refineSummary(entity,pre_summary,input_text,socialMedia_summary,kg_subgraph=None,exist_kg=None):
     yield pre_summary
     yield "\n"
     if exist_kg:
@@ -421,6 +421,8 @@ def refineSummary(entity,pre_summary,input_text,kg_subgraph=None,exist_kg=None):
                 yield data
         update_data(entity=entity,kg_summary=stream_data)
     if len(input_text)>0:
+        if socialMedia_summary:
+            input_text.extend(socialMedia_summary)
         PROMPT = f"I want you to act as a summarizer. I will give you a preSummary and a text, and you should refine a summary to replenishment the preSummary based on the text given. Your summary should be factual and segmented, covering the most important aspects of the text. Your new summary should be the addictions to preSummary, and not same to it.\n"
         content = f"The preSummary is: {pre_summary} \n\n The text is: {input_text}\n\n"
         completion = client.chat.completions.create(
@@ -435,6 +437,7 @@ def refineSummary(entity,pre_summary,input_text,kg_subgraph=None,exist_kg=None):
             data = chunk.choices[0].delta.content
             if data!=None:
                 yield data
+        
         # data = chunk.choices[0]['message']['content']
     # print(stream_data) 
     # return stream_data
@@ -488,7 +491,7 @@ def entitySearch():
         simUrlSummary = getUrlSummary(simUrl)
         print(f"kg_subgraph:{kg_subgraph}")
         print(f"simUrlSummary:{simUrlSummary}")
-        return Response(refineSummary(project_name,intro,simUrlSummary+socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
+        return Response(refineSummary(project_name,intro,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     elif type_==2: # investor entity
         data = res
@@ -525,7 +528,7 @@ def entitySearch():
         simUrlSummary = getUrlSummary(simUrl)
         print(f"kg_subgraph:{kg_subgraph}")
         print(f"simUrlSummary:{simUrlSummary}")
-        return Response(refineSummary(org_name,description,simUrlSummary+socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
+        return Response(refineSummary(org_name,description,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     return jsonify(data="Error!"), 500
 
