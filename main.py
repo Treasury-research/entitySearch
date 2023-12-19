@@ -295,7 +295,7 @@ def _get_relevant_documents(texts, query, k, relevancy_threshold=None):
     index_embeds = openai.embeddings.create(model="text-embedding-ada-002", input=texts)
     index_embeds = np.array([item.embedding for item in index_embeds.data])
     query_embeds = openai.embeddings.create(model="text-embedding-ada-002", input=query)
-    query_embeds = np.array([item.embedding for item in index_embeds.data])
+    query_embeds = np.array([item.embedding for item in query_embeds.data])
     # calc L2 norm
     index_embeds = index_embeds / np.sqrt((index_embeds**2).sum(1, keepdims=True))
     query_embeds = query_embeds / np.sqrt((query_embeds**2).sum())
