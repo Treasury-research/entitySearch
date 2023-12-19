@@ -10,7 +10,7 @@ import requests
 import copy
 import openai
 import numpy as np
-from langchain.scheam import Document
+from langchain.schema import Document
 from openai import OpenAI
 import random
 from serpapi import search
