@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 import uuid
 import pymysql
 import tiktoken
+import logging
 # os.environ["http_proxy"] = "http://localhost:7890"
 # os.environ["https_proxy"] = "http://localhost:7890"
 from neo4j_ import Neo4jGraphStore
@@ -62,7 +63,9 @@ pool = PooledDB(
 client = OpenAI()
 app = Flask(__name__)
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-
+# 配置日志记录
+logging.basicConfig(filename='entity_search.log', level=logging.DEBUG, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 def getRootData(entity):
     # 请求头部信息
     headers = {
@@ -142,7 +145,7 @@ def check_url_exists(url, data=None):
     cursor.close()
     conn.close()
     if data and res!=None:
-        print(res)
+        logging.info(res)
         return res[0]
     elif res!=None:
         return True
@@ -206,7 +209,7 @@ def query_data(entity,kg_summary=None, socialMedia_summary=None, socialMedia_url
 
 def getUrlSummary(urls):
     res = []
-    print("all need fetch url:",urls)
+    logging.info("all need fetch url:",urls)
     my_headers = [
     "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.153 Safari/537.36",
@@ -235,16 +238,16 @@ def getUrlSummary(urls):
                 soup = BeautifulSoup(response.content, "html.parser")
                 main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
                 if soup.find("title") and len(main_text)>200:
-                    print("Ok url:", url)
+                    logging.info("Ok url:", url)
                     # res.append(main_text)
                     summary_url = getBriefSummary(main_text)
                     insert_or_update_data(url,summary_url)
                     res.append(summary_url)
                     continue
                 else:
-                    print(f"{url} fail fetch content.")
+                    logging.info(f"{url} fail fetch content.")
             else:
-                print(f"First fetch url error:{url}, code:{response.status_code}")
+                logging.info(f"First fetch url error:{url}, code:{response.status_code}")
                 s=request.Session()
                 s.trust_env=False
                 response_ = requests.request("GET", url,headers=headers)
@@ -253,19 +256,19 @@ def getUrlSummary(urls):
                     soup = BeautifulSoup(response_.content, "html.parser")
                     main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
                     if soup.find("title") and len(main_text)>200:
-                        print("Ok url:", url)
+                        logging.info("Ok url:", url)
                         # res.append(main_text)
                         summary_url = getBriefSummary(main_text)
                         insert_or_update_data(url,summary_url)
                         res.append(summary_url)
                         continue
                     else:
-                        print(f"{url} fail fetch content.")
+                        logging.info(f"{url} fail fetch content.")
                 else:
-                    print(f"Status error url:{url}, code:{response_.status_code}")
+                    logging.info(f"Status error url:{url}, code:{response_.status_code}")
 
         except:
-            print("Fail url:",url)
+            logging.info("Fail url:",url)
             pass
     return res
 
@@ -413,7 +416,7 @@ def refineSummary(entity,pre_summary,input_text,socialMedia_summary,kg_subgraph=
             max_tokens = 2048,
             stream=True
         )
-        print("yield kgSummary")
+        logging.info("yield kgSummary")
         for chunk in completion:
             data = chunk.choices[0].delta.content
             if data!=None:
@@ -439,7 +442,7 @@ def refineSummary(entity,pre_summary,input_text,socialMedia_summary,kg_subgraph=
                 yield data
         
         # data = chunk.choices[0]['message']['content']
-    # print(stream_data) 
+    # logging.info(stream_data) 
     # return stream_data
 
 @app.route('/api/entitySearch',methods=['POST','GET'])
@@ -452,9 +455,9 @@ def entitySearch():
         entity = request.get_json().get("entity")
         k = request.get_json().get("k")
         socialUrlSummary = request.get_json().get("socialUrlSummary")
-        print(f"Post k is:{k}")
-        print(f"Post Entity is:{entity}")
-        print(f"Post socialUrlSummary is:{socialUrlSummary}")
+        logging.info(f"Post k is:{k}")
+        logging.info(f"Post Entity is:{entity}")
+        logging.info(f"Post socialUrlSummary is:{socialUrlSummary}")
 
     res,type_ = getRootData(entity)
     socialMedia_summary = ""
@@ -489,8 +492,8 @@ def entitySearch():
         googleData = googleSearch(project_name)
         simText,simUrl = getSimUrl(intro, googleData, k)
         simUrlSummary = getUrlSummary(simUrl)
-        print(f"kg_subgraph:{kg_subgraph}")
-        print(f"simUrlSummary:{simUrlSummary}")
+        logging.info(f"kg_subgraph:{kg_subgraph}")
+        logging.info(f"simUrlSummary:{simUrlSummary}")
         return Response(refineSummary(project_name,intro,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     elif type_==2: # investor entity
@@ -526,8 +529,8 @@ def entitySearch():
         googleData = googleSearch(project_name,type=2)
         simText,simUrl = getSimUrl(description, googleData, k)
         simUrlSummary = getUrlSummary(simUrl)
-        print(f"kg_subgraph:{kg_subgraph}")
-        print(f"simUrlSummary:{simUrlSummary}")
+        logging.info(f"kg_subgraph:{kg_subgraph}")
+        logging.info(f"simUrlSummary:{simUrlSummary}")
         return Response(refineSummary(org_name,description,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     return jsonify(data="Error!"), 500
@@ -537,7 +540,7 @@ def progress():
     def generate():
         for ratio in range(10):
             yield "data:" + str(ratio) + "\n\n"
-            print("ratio:", ratio)
+            logging.info("ratio:", ratio)
             time.sleep(1)
     return Response(stream_with_context(generate()),mimetype="text/event-stream")
 
