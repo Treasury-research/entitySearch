@@ -159,14 +159,17 @@ def insert_or_update_data(url, summary):
     current_time = datetime.now()
     create_at = current_time.strftime('%Y-%m-%d %H:%M:%S')
     generated_uuid = str(uuid.uuid4())
+    # sql = """
+    #     INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer)
+    #     VALUES (%s, %s, %s, %s, %s)
+    #     ON DUPLICATE KEY UPDATE
+    #         summary = VALUES(summary),
+    #         created_at = VALUES(created_at),
+    #         is_source_answer = VALUES(is_source_answer)
+    # """
     sql = """
         INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer)
         VALUES (%s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            id = VALUES(id),
-            summary = VALUES(summary),
-            created_at = VALUES(created_at),
-            is_source_answer = VALUES(is_source_answer)
     """
     cursor.execute(sql, (generated_uuid, url, summary, create_at, 0))
     conn.commit()
