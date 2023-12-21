@@ -549,7 +549,7 @@ def entitySearch():
                 kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
 
         # get the socialmedia Url summary
-        googleData = googleSearch(project_name,type=2)
+        googleData = googleSearch(org_name,type=2)
         simText,simUrl = getSimUrl(description, googleData, k)
         simUrlSummary = getUrlSummary(simUrl)
         logging.info(f"kg_subgraph:{kg_subgraph}")
