@@ -111,9 +111,9 @@ def getRootData(entity):
     elif org_id:
         # 请求体参数
         data_project = {
-            "org_id": project_id,
+            "org_id": org_id,
             "include_team": True,
-            "include_investors": True
+            "include_investments": True
         }
         url = "https://api.rootdata.com/open/get_org"
         response = requests.post(url, headers=headers, json=data_project)
@@ -159,6 +159,16 @@ def insert_or_update_data(url, summary):
     current_time = datetime.now()
     create_at = current_time.strftime('%Y-%m-%d %H:%M:%S')
     generated_uuid = str(uuid.uuid4())
+    if check_url_exists(url):
+        # URL存在，更新数据
+        update_query = "UPDATE rootData_summary SET summary = %s, created_at = %s WHERE url = %s"
+        cursor.execute(update_query, (summary, create_at, url))
+        print(f"Data {url} updated 0.")
+    else:
+        # URL不存在，插入新数据
+        insert_query = "INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer) VALUES (%s, %s, %s,%s,%s)"
+        cursor.execute(insert_query, (generated_uuid,url, summary, create_at,0))
+        print(f"Data {url} inserted 0.")
     # sql = """
     #     INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer)
     #     VALUES (%s, %s, %s, %s, %s)
@@ -167,11 +177,11 @@ def insert_or_update_data(url, summary):
     #         created_at = VALUES(created_at),
     #         is_source_answer = VALUES(is_source_answer)
     # """
-    sql = """
-        INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer)
-        VALUES (%s, %s, %s, %s, %s)
-    """
-    cursor.execute(sql, (generated_uuid, url, summary, create_at, 0))
+    # # sql = """
+    # #     INSERT INTO rootData_summary (id, url, summary, created_at, is_source_answer)
+    # #     VALUES (%s, %s, %s, %s, %s)
+    # # """
+    # cursor.execute(sql, (generated_uuid, url, summary, create_at, 0))
     conn.commit()
     cursor.close()
     conn.close()
@@ -240,12 +250,12 @@ def getUrlSummary(urls):
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "html.parser")
                 main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
-                if soup.find("title") and len(main_text)>200:
+                if soup.find("title"):
                     logging.info("Ok url:", url)
                     # res.append(main_text)
                     summary_url = getBriefSummary(main_text)
-                    insert_or_update_data(url,summary_url)
                     res.append(summary_url)
+                    insert_or_update_data(url,summary_url)
                     continue
                 else:
                     logging.info(f"{url} fail fetch content.")
@@ -258,12 +268,12 @@ def getUrlSummary(urls):
                 if response_.status_code == 200:
                     soup = BeautifulSoup(response_.content, "html.parser")
                     main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
-                    if soup.find("title") and len(main_text)>200:
+                    if soup.find("title"):
                         logging.info("Ok url:", url)
                         # res.append(main_text)
                         summary_url = getBriefSummary(main_text)
-                        insert_or_update_data(url,summary_url)
                         res.append(summary_url)
+                        insert_or_update_data(url,summary_url)
                         continue
                     else:
                         logging.info(f"{url} fail fetch content.")
@@ -463,6 +473,8 @@ def entitySearch():
         logging.info(f"Post socialUrlSummary is:{socialUrlSummary}")
 
     res,type_ = getRootData(entity)
+    if res == False:
+        return jsonify(data="Cannot get the entity from rootdata."), 500
     socialMedia_summary = ""
     if type_==1: # project entity
         # res:data is data; result is res code
