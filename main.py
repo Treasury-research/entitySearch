@@ -422,7 +422,7 @@ def refineSummary(entity,pre_summary,input_text,socialMedia_summary,kg_subgraph=
         yield "\n"
     elif kg_subgraph:
         stream_data = ""
-        PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible and contain enough information in the knowledge graph. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.'"
+        PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible and contain enough information in the knowledge graph. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.' If the generated sequence is too long, please extract the key points and ensure the sentences are fluent."
         content = f"The knowledge graph triples are: {kg_subgraph}\n\n"
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo-16k",                                          # 模型选择GPT 3.5 Turbo
