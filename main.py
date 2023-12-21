@@ -190,6 +190,8 @@ def insert_data(entity, rootdata_summary, kg_summary=None, socialMedia_summary=N
     conn = pool.connection()
     cursor = conn.cursor()
     id = str(uuid.uuid4())
+    if socialMedia_url:
+        socialMedia_url = ','.join(socialMedia_url)
     cursor.execute("INSERT INTO entity_summary (id, entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url) VALUES (%s, %s, %s, %s, %s, %s)", 
               (id, entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url))
     conn.commit()
