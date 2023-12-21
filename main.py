@@ -514,10 +514,14 @@ def entitySearch():
     elif type_==2: # investor entity
         data = res
         description = data['description']
-        investments = data['investments']
+        investments = None
+        if data.get('investments') is not None:
+            investments = data['investments']
         establishment_date = data['establishment_date']
         org_name = data['org_name']
-        team_members = data['team_members']
+        team_members = None
+        if data.get('team_members') is not None:
+            team_members = data['team_members']
         social_media_url = [value for key,value in data['social_media'].items() if value!="" and key!="X"]
 
         # check exist in mysql
@@ -537,8 +541,10 @@ def entitySearch():
                 update_data(entity=org_name,socialMedia_summary=socialMedia_summary)
         if exist_kg == None:
             kg_subgraph = graph_store.get_rel_map([org_name])
-            kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
-            kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
+            if team_members:
+                kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
+            if investments:
+                kg_subgraph[org_name].append([[org_name,"INVESTED", sim["name"]] for sim in investments])
 
         # get the socialmedia Url summary
         googleData = googleSearch(project_name,type=2)
