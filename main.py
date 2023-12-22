@@ -521,7 +521,9 @@ def entitySearch():
                 update_data(entity=project_name,socialMedia_summary=socialMedia_summary)
         if exist_kg==None:
             kg_subgraph = graph_store.get_rel_map([project_name])
-            kg_subgraph[project_name].append([[project_name,"similar_project", sim] for sim in similar_project])
+            if kg_subgraph.get(project_name) is None:
+                kg_subgraph[project_name] = []
+            kg_subgraph[project_name]=([[project_name,"similar_project", sim] for sim in similar_project])
 
         # get the socialmedia Url summary
         googleData = googleSearch(project_name)
@@ -561,6 +563,8 @@ def entitySearch():
                 update_data(entity=org_name,socialMedia_summary=socialMedia_summary)
         if exist_kg == None:
             kg_subgraph = graph_store.get_rel_map([org_name])
+            if kg_subgraph.get(org_name) is None:
+                kg_subgraph[org_name] = []
             if team_members:
                 kg_subgraph[org_name].append([[org_name,"team_members", sim["name"]] for sim in team_members])
             if investments:
