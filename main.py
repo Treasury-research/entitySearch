@@ -422,7 +422,7 @@ def refineSummary(entity,pre_summary,input_text,socialMedia_summary,kg_subgraph=
         yield "\n"
     elif kg_subgraph:
         stream_data = ""
-        PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible and contain enough information in the knowledge graph. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.' If the generated sequence is too long, please extract the key points and ensure the sentences are fluent."
+        PROMPT = f"I need you to be a text sequence generation engineer. I will provide you with knowledge graph triples, which may involve multiple jumps of knowledge, and you will need to generate sequence text based on the triples I provide. This text is required to be as fluent as possible. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along 'those lines.' If the generated sequence is too long, please extract the key points and ensure the sentences are fluent."
         content = f"The knowledge graph triples are: {kg_subgraph}\n\n"
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo-16k",                                          # 模型选择GPT 3.5 Turbo
@@ -473,11 +473,29 @@ def entitySearch():
         logging.info(f"Post k is:{k}")
         logging.info(f"Post Entity is:{entity}")
         logging.info(f"Post socialUrlSummary is:{socialUrlSummary}")
+    socialMedia_summary = ""
+    entity_mysql = query_data(entity)
+    if entity_mysql:
+        kg_subgraph = None
+        entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url = mysql_res
+        if kg_summary:
+            exist_kg = True
+            kg_subgraph = kg_summary
+        if socialUrlSummary and socialMedia_summary==None:
+            socialMedia_summary = getUrlSummary(social_media_url)
+            update_data(entity=project_name,socialMedia_summary=socialMedia_summary)
+
+        # get the socialmedia Url summary
+        googleData = googleSearch(entity)
+        simText,simUrl = getSimUrl(rootdata_summary, googleData, k)
+        simUrlSummary = getUrlSummary(simUrl)
+        logging.info(f"kg_subgraph:{kg_subgraph}")
+        logging.info(f"simUrlSummary:{simUrlSummary}")
+        return Response(refineSummary(entity,rootdata_summary,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     res,type_ = getRootData(entity)
     if res == False:
         return jsonify(data="Cannot get the entity from rootdata."), 500
-    socialMedia_summary = ""
     if type_==1: # project entity
         # res:data is data; result is res code
         data = res
@@ -557,6 +575,19 @@ def entitySearch():
         return Response(refineSummary(org_name,description,simUrlSummary,socialMedia_summary,kg_subgraph,exist_kg), mimetype="text/event-stream")
 
     return jsonify(data="Error!"), 500
+
+@app.route('/api/getEntityList')
+def query_all_entity():
+    conn = pool.connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT entity FROM entity_summary;")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    if rows:
+        return jsonify(data=rows), 200
+    else:
+        return jsonify(data="query database error!"), 500
 
 @app.route('/api/stream')
 def progress():
