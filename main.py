@@ -242,6 +242,8 @@ def getUrlSummary(urls):
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Version/118.0.0 Safari/537.36",
     ]
     for url in urls:
+        if "www.youtube.com" in url:
+            continue
         databaseGet = check_url_exists(url,data=True)
         if databaseGet:
             res.append(databaseGet)
@@ -252,7 +254,7 @@ def getUrlSummary(urls):
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, "html.parser")
                 main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
-                if soup.find("title"):
+                if soup.find("title") and len(main_text)>200:
                     logging.info("Ok url:", url)
                     # res.append(main_text)
                     summary_url = getBriefSummary(main_text)
@@ -270,7 +272,7 @@ def getUrlSummary(urls):
                 if response_.status_code == 200:
                     soup = BeautifulSoup(response_.content, "html.parser")
                     main_text = ' '.join(p.get_text() for p in soup.find_all('p'))
-                    if soup.find("title"):
+                    if soup.find("title") and len(main_text)>200:
                         logging.info("Ok url:", url)
                         # res.append(main_text)
                         summary_url = getBriefSummary(main_text)
@@ -402,7 +404,7 @@ def parse_snippets(results, k):
         for attribute, value in kg.get("attributes", {}).items():
             snippets.append(f"{title} {attribute}: {value}.")
 
-    for result in results[result_key_for_type[type]][: k]:
+    for result in results[result_key_for_type[type]][:k]:
         if "snippet" in result:
             snippets.append([result["snippet"],result["link"]])
         # for attribute, value in result.get("attributes", {}).items():
@@ -501,7 +503,9 @@ def entitySearch():
         data = res
         intro = data['description']
         social_media_url = [value for key,value in data['social_media'].items() if value!="" and key!="X"]
-        similar_project = [project["project_name"] for project in data['similar_project']]
+        similar_project = None
+        if data.get('similar_project') is not None:
+            similar_project = [project["project_name"] for project in data['similar_project']]
         project_name = data["project_name"]
         investors = data["investors"]
         # check exist in mysql
@@ -523,7 +527,8 @@ def entitySearch():
             kg_subgraph = graph_store.get_rel_map([project_name])
             if kg_subgraph.get(project_name) is None:
                 kg_subgraph[project_name] = []
-            kg_subgraph[project_name]=([[project_name,"similar_project", sim] for sim in similar_project])
+            if similar_project:
+                kg_subgraph[project_name]=([[project_name,"similar_project", sim] for sim in similar_project])
 
         # get the socialmedia Url summary
         googleData = googleSearch(project_name)
