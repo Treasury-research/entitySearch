@@ -477,7 +477,7 @@ def entitySearch():
     entity_mysql = query_data(entity)
     if entity_mysql:
         kg_subgraph = None
-        entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url = mysql_res
+        entity, rootdata_summary, kg_summary, socialMedia_summary, socialMedia_url = entity_mysql
         if kg_summary:
             exist_kg = True
             kg_subgraph = kg_summary
